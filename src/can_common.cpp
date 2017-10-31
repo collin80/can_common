@@ -3,6 +3,7 @@
 CANListener::CANListener()
 {
 	callbacksActive = 0; //none. Bitfield were bits 0-7 are the mailboxes and bit 8 is the general callback
+    numFilters = 8;
 }
 
 //an empty version so that the linker doesn't complain that no implementation exists.
@@ -13,7 +14,7 @@ void CANListener::gotFrame(CAN_FRAME */*frame*/, int /*mailbox*/)
 
 void CANListener::attachMBHandler(uint8_t mailBox)
 {
-	if ( mailBox < CANMB_NUMBER )
+	if ( mailBox < numFilters )
 	{
 		callbacksActive |= (1<<mailBox);
 	}
@@ -21,7 +22,7 @@ void CANListener::attachMBHandler(uint8_t mailBox)
 
 void CANListener::detachMBHandler(uint8_t mailBox)
 {
-	if ( mailBox < CANMB_NUMBER )
+	if ( mailBox < numFilters )
 	{
 		callbacksActive &= ~(1<<mailBox);
 	}  
@@ -29,12 +30,12 @@ void CANListener::detachMBHandler(uint8_t mailBox)
 
 void CANListener::attachGeneralHandler()
 {
-	callbacksActive |= 256;
+	callbacksActive |= (1 << numFilters);
 }
 
 void CANListener::detachGeneralHandler()
 {
-	callbacksActive &= ~256;
+	callbacksActive &= ~(1 << numFilters);
 }
 
 void CANListener::initialize()
@@ -88,15 +89,6 @@ void CAN_COMMON::setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *))
 {
 }
 
-void CAN_COMMON::setGeneralCallback(void (*cb)(CAN_FRAME *))
-{
-}
-
-void CAN_COMMON::attachCANInterrupt(void (*cb)(CAN_FRAME *)) 
-{
-	setGeneralCallback(cb);
-}
-
 void CAN_COMMON::attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *)) 
 {
 	setCallback(mailBox, cb);
@@ -132,6 +124,19 @@ boolean CAN_COMMON::detachObj(CANListener *listener)
 	}
 	return false;  
 }
+
+/**
+ * \brief Set up a general callback that will be used if no callback was registered for receiving mailbox
+ *
+ * \param cb A function pointer to a function with prototype "void functionname(CAN_FRAME *frame);"
+ *
+ * \note If this function is used to set up a callback then no buffering of frames will ever take place.
+ */
+void CAN_COMMON::setGeneralCallback(void (*cb)(CAN_FRAME *))
+{
+	cbGeneral = cb;
+}
+
 
 int CAN_COMMON::setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) {
 	return -1;

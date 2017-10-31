@@ -73,9 +73,11 @@ public:
   void detachGeneralHandler();
   void initialize();
   bool isCallbackActive(int callback);
+  void setNumFilters(int numFilt);
 
 private:
   int callbacksActive; //bitfield letting the code know which callbacks to actually try to use (for object oriented callbacks only)
+  int numFilters; //filters, mailboxes, whichever, how many do we have?
 
 };
 
@@ -99,9 +101,7 @@ public:
 	virtual bool sendFrame(CAN_FRAME& txFrame) = 0;
 
 	virtual void setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *));
-	virtual void setGeneralCallback(void (*cb)(CAN_FRAME *));
 	//note that these below versions still use mailbox number. There isn't a good way around this. 
-	virtual void attachCANInterrupt(void (*cb)(CAN_FRAME *)); //alternative callname for setGeneralCallback
 	virtual void attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *));
 	virtual void detachCANInterrupt(uint8_t mailBox);
 	
@@ -120,9 +120,12 @@ public:
 	uint32_t getBusSpeed();
     boolean attachObj(CANListener *listener);
 	boolean detachObj(CANListener *listener);
+    void setGeneralCallback( void (*cb)(CAN_FRAME *) );
+    void attachCANInterrupt( void (*cb)(CAN_FRAME *) ) {setGeneralCallback(cb);}
 
 protected:
 	CANListener *listener[SIZE_LISTENERS];
+    void (*cbGeneral)(CAN_FRAME *); //general callback if no per-mailbox or per-filter entries matched
     uint32_t busSpeed;
 };
 
