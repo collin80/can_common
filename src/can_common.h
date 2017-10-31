@@ -28,6 +28,9 @@
 #define CAN_BPS_10K		10000
 #define CAN_BPS_5K		5000
 
+#define SIZE_LISTENERS	4 //number of classes that can register as listeners with this class
+#define CAN_DEFAULT_BAUD	CAN_BPS_250K
+
 //This structure presupposes little endian mode. If you use it on a big endian processor you're going to have a bad time.
 typedef union {
   uint64_t value;
@@ -74,6 +77,53 @@ public:
 private:
   int callbacksActive; //bitfield letting the code know which callbacks to actually try to use (for object oriented callbacks only)
 
+};
+
+/*Abstract function that mostly just sets an interface that all descendants must implement */
+class CAN_COMMON
+{
+public:
+
+    virtual int setRXFilter(uint32_t id, uint32_t mask, bool extended) = 0;
+	virtual int setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended);
+	virtual int watchFor(); //allow anything through
+	virtual uint32_t init(uint32_t ul_baudrate) = 0;
+	virtual uint32_t begin(uint32_t baudrate, uint8_t enablePin);
+    virtual uint32_t beginAutoSpeed();
+    virtual uint32_t beginAutoSpeed(uint8_t enablePin);
+    virtual uint32_t set_baudrate(uint32_t ul_baudrate) = 0;
+
+	virtual void enable() = 0;
+	virtual void disable() = 0;
+
+	virtual bool sendFrame(CAN_FRAME& txFrame) = 0;
+
+	virtual void setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *));
+	virtual void setGeneralCallback(void (*cb)(CAN_FRAME *));
+	//note that these below versions still use mailbox number. There isn't a good way around this. 
+	virtual void attachCANInterrupt(void (*cb)(CAN_FRAME *)); //alternative callname for setGeneralCallback
+	virtual void attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *));
+	virtual void detachCANInterrupt(uint8_t mailBox);
+	
+
+	virtual bool rx_avail() = 0;
+	virtual uint16_t available() = 0; //like rx_avail but returns the number of waiting frames
+
+	virtual uint32_t get_rx_buff(CAN_FRAME &msg) = 0;
+    //wrapper for syntactic sugar reasons
+	inline uint32_t read(CAN_FRAME &msg) { return get_rx_buff(msg); }
+	int watchFor(uint32_t id); //allow just this ID through (automatic determination of extended status)
+	int watchFor(uint32_t id, uint32_t mask); //allow a range of ids through
+	int watchForRange(uint32_t id1, uint32_t id2); //try to allow the range from id1 to id2 - automatically determine base ID and mask
+	uint32_t begin();
+	uint32_t begin(uint32_t baudrate);
+	uint32_t getBusSpeed();
+    boolean attachObj(CANListener *listener);
+	boolean detachObj(CANListener *listener);
+
+protected:
+	CANListener *listener[SIZE_LISTENERS];
+    uint32_t busSpeed;
 };
 
 #endif
