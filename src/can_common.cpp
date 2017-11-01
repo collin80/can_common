@@ -55,6 +55,14 @@ Some functions in CAN_COMMON are declared = 0 which means you HAVE to reimplemen
 and they've got blank or very simple implementations below.
 */
 
+CAN_COMMON::CAN_COMMON(int numFilt)
+{
+    numFilters = numFilt;
+    //Official entry for the worst, most convoluted looking C++ line ever written.
+    //Dynamically allocate enough space for the function pointers with a hideous malloc call.
+    *cbCANFrame = (void (*)(CAN_FRAME *))malloc(sizeof(void (*)(CAN_FRAME *)) * numFilters);
+}
+
 uint32_t CAN_COMMON::begin()
 {
 	return init(CAN_DEFAULT_BAUD);
@@ -83,19 +91,6 @@ uint32_t CAN_COMMON::beginAutoSpeed(uint8_t enablePin)
 uint32_t CAN_COMMON::getBusSpeed()
 {
 	return busSpeed;
-}
-
-void CAN_COMMON::setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *))
-{
-}
-
-void CAN_COMMON::attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *)) 
-{
-	setCallback(mailBox, cb);
-}
-
-void CAN_COMMON::detachCANInterrupt(uint8_t mailBox)
-{
 }
 
 boolean CAN_COMMON::attachObj(CANListener *listener)
@@ -137,6 +132,29 @@ void CAN_COMMON::setGeneralCallback(void (*cb)(CAN_FRAME *))
 	cbGeneral = cb;
 }
 
+/**
+ * \brief Set up a callback function for given mailbox
+ *
+ * \param mailbox Which mailbox (0-7) to assign callback to.
+ * \param cb A function pointer to a function with prototype "void functionname(CAN_FRAME *frame);"
+ *
+ */
+void CAN_COMMON::setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *))
+{
+	if ( mailbox >= numFilters ) return;
+	cbCANFrame[mailbox] = cb;
+}
+
+void CAN_COMMON::attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *)) 
+{
+	setCallback(mailBox, cb);
+}
+
+void CAN_COMMON::detachCANInterrupt(uint8_t mailBox)
+{
+	if ( mailBox >= numFilters ) return;
+	cbCANFrame[mailBox] = 0;
+}
 
 int CAN_COMMON::setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) {
 	return -1;

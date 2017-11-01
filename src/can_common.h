@@ -86,6 +86,10 @@ class CAN_COMMON
 {
 public:
 
+    CAN_COMMON(int numFilt);
+
+    //Public API that needs to be re-implemented by subclasses
+
     virtual int setRXFilter(uint32_t id, uint32_t mask, bool extended) = 0;
 	virtual int setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended);
 	virtual int watchFor(); //allow anything through
@@ -94,22 +98,20 @@ public:
     virtual uint32_t beginAutoSpeed();
     virtual uint32_t beginAutoSpeed(uint8_t enablePin);
     virtual uint32_t set_baudrate(uint32_t ul_baudrate) = 0;
+    virtual void setListenOnlyMode(bool state) = 0;
 
 	virtual void enable() = 0;
 	virtual void disable() = 0;
 
 	virtual bool sendFrame(CAN_FRAME& txFrame) = 0;
 
-	virtual void setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *));
-	//note that these below versions still use mailbox number. There isn't a good way around this. 
-	virtual void attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *));
-	virtual void detachCANInterrupt(uint8_t mailBox);
-	
-
 	virtual bool rx_avail() = 0;
 	virtual uint16_t available() = 0; //like rx_avail but returns the number of waiting frames
 
 	virtual uint32_t get_rx_buff(CAN_FRAME &msg) = 0;
+
+
+    //Public API common to all subclasses - don't need to be re-implemented
     //wrapper for syntactic sugar reasons
 	inline uint32_t read(CAN_FRAME &msg) { return get_rx_buff(msg); }
 	int watchFor(uint32_t id); //allow just this ID through (automatic determination of extended status)
@@ -122,11 +124,16 @@ public:
 	boolean detachObj(CANListener *listener);
     void setGeneralCallback( void (*cb)(CAN_FRAME *) );
     void attachCANInterrupt( void (*cb)(CAN_FRAME *) ) {setGeneralCallback(cb);}
+	void setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *));
+	void attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *));
+	void detachCANInterrupt(uint8_t mailBox);
 
 protected:
 	CANListener *listener[SIZE_LISTENERS];
     void (*cbGeneral)(CAN_FRAME *); //general callback if no per-mailbox or per-filter entries matched
+    void (**cbCANFrame)(CAN_FRAME *); //array of function pointers - disgusting syntax though.
     uint32_t busSpeed;
+    int numFilters;
 };
 
 #endif
