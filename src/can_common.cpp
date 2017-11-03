@@ -60,7 +60,10 @@ CAN_COMMON::CAN_COMMON(int numFilt)
     numFilters = numFilt;
     //Official entry for the worst, most convoluted looking C++ line ever written.
     //Dynamically allocate enough space for the function pointers with a hideous malloc call.
-    *cbCANFrame = (void (*)(CAN_FRAME *))malloc(sizeof(void (*)(CAN_FRAME *)) * numFilters);
+    //cbCANFrame = malloc(4 * numFilters);
+    memset(cbCANFrame, 0, 4 * numFilters);
+    cbGeneral = 0;
+    for (int i = 0; i < SIZE_LISTENERS; i++) listener[i] = 0;
 }
 
 uint32_t CAN_COMMON::begin()

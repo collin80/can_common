@@ -131,7 +131,7 @@ public:
 protected:
 	CANListener *listener[SIZE_LISTENERS];
     void (*cbGeneral)(CAN_FRAME *); //general callback if no per-mailbox or per-filter entries matched
-    void (**cbCANFrame)(CAN_FRAME *); //array of function pointers - disgusting syntax though.
+    void (*cbCANFrame[16])(CAN_FRAME *); //array of function pointers - disgusting syntax though.
     uint32_t busSpeed;
     int numFilters;
 };
