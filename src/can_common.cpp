@@ -63,6 +63,7 @@ CAN_COMMON::CAN_COMMON(int numFilt)
     //cbCANFrame = malloc(4 * numFilters);
     memset(cbCANFrame, 0, 4 * numFilters);
     cbGeneral = 0;
+    enablePin = 255;
     for (int i = 0; i < SIZE_LISTENERS; i++) listener[i] = 0;
 }
 
@@ -76,19 +77,10 @@ uint32_t CAN_COMMON::begin(uint32_t baudrate)
 	return init(baudrate);
 }
 
-uint32_t CAN_COMMON::begin(uint32_t baudrate, uint8_t enablePin) 
+uint32_t CAN_COMMON::begin(uint32_t baudrate, uint8_t enPin) 
 {
-	return 0;
-}
-
-uint32_t CAN_COMMON::beginAutoSpeed()
-{
-    return 0; 
-}
-
-uint32_t CAN_COMMON::beginAutoSpeed(uint8_t enablePin)
-{
-    return beginAutoSpeed();
+	enablePin = enPin;
+    return init(baudrate);
 }
 
 uint32_t CAN_COMMON::getBusSpeed()
@@ -159,13 +151,15 @@ void CAN_COMMON::detachCANInterrupt(uint8_t mailBox)
 	cbCANFrame[mailBox] = 0;
 }
 
-int CAN_COMMON::setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) {
+int CAN_COMMON::setMBFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) {
 	return -1;
 }
 
 int CAN_COMMON::watchFor() 
 {
-	return 0;
+    setRXFilter(0, 0, false);
+	return setRXFilter(0, 0, true);
+
 }
 
 //Let a single frame ID through. Automatic determination of extended. Also automatically sets mask

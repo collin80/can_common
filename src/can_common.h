@@ -89,36 +89,32 @@ public:
     CAN_COMMON(int numFilt);
 
     //Public API that needs to be re-implemented by subclasses
-
+	virtual int setMBFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) = 0;
     virtual int setRXFilter(uint32_t id, uint32_t mask, bool extended) = 0;
-	virtual int setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended);
-	virtual int watchFor(); //allow anything through
 	virtual uint32_t init(uint32_t ul_baudrate) = 0;
-	virtual uint32_t begin(uint32_t baudrate, uint8_t enablePin);
-    virtual uint32_t beginAutoSpeed();
-    virtual uint32_t beginAutoSpeed(uint8_t enablePin);
+    virtual uint32_t beginAutoSpeed() = 0;
     virtual uint32_t set_baudrate(uint32_t ul_baudrate) = 0;
     virtual void setListenOnlyMode(bool state) = 0;
-
 	virtual void enable() = 0;
 	virtual void disable() = 0;
-
 	virtual bool sendFrame(CAN_FRAME& txFrame) = 0;
-
 	virtual bool rx_avail() = 0;
 	virtual uint16_t available() = 0; //like rx_avail but returns the number of waiting frames
-
 	virtual uint32_t get_rx_buff(CAN_FRAME &msg) = 0;
-
 
     //Public API common to all subclasses - don't need to be re-implemented
     //wrapper for syntactic sugar reasons
+    //note to my dumb self - functions cannot be both virtual and have multiple versions where the parameter list is different
+    //you have to pick one or the other.
 	inline uint32_t read(CAN_FRAME &msg) { return get_rx_buff(msg); }
+    int watchFor(); //allow anything through
 	int watchFor(uint32_t id); //allow just this ID through (automatic determination of extended status)
-	int watchFor(uint32_t id, uint32_t mask); //allow a range of ids through
+    int watchFor(uint32_t id, uint32_t mask); //allow a range of ids through
+    int watchFor(uint32_t id, uint32_t mask, bool ext);
 	int watchForRange(uint32_t id1, uint32_t id2); //try to allow the range from id1 to id2 - automatically determine base ID and mask
 	uint32_t begin();
 	uint32_t begin(uint32_t baudrate);
+    uint32_t begin(uint32_t baudrate, uint8_t enPin);
 	uint32_t getBusSpeed();
     boolean attachObj(CANListener *listener);
 	boolean detachObj(CANListener *listener);
@@ -134,6 +130,7 @@ protected:
     void (*cbCANFrame[16])(CAN_FRAME *); //array of function pointers - disgusting syntax though.
     uint32_t busSpeed;
     int numFilters;
+    int enablePin;
 };
 
 #endif
