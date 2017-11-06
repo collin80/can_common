@@ -151,8 +151,14 @@ void CAN_COMMON::detachCANInterrupt(uint8_t mailBox)
 	cbCANFrame[mailBox] = 0;
 }
 
-int CAN_COMMON::setMBFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) {
-	return -1;
+int CAN_COMMON::setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended)
+{
+    _setFilterSpecific(mailbox, id, mask, extended);
+}
+
+int CAN_COMMON::setRXFilter(uint32_t id, uint32_t mask, bool extended)
+{
+    _setFilter(id, mask, extended);
 }
 
 int CAN_COMMON::watchFor() 

@@ -89,8 +89,8 @@ public:
     CAN_COMMON(int numFilt);
 
     //Public API that needs to be re-implemented by subclasses
-	virtual int setMBFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) = 0;
-    virtual int setRXFilter(uint32_t id, uint32_t mask, bool extended) = 0;
+	virtual int _setFilterSpecific(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) = 0;
+    virtual int _setFilter(uint32_t id, uint32_t mask, bool extended) = 0;
 	virtual uint32_t init(uint32_t ul_baudrate) = 0;
     virtual uint32_t beginAutoSpeed() = 0;
     virtual uint32_t set_baudrate(uint32_t ul_baudrate) = 0;
@@ -116,6 +116,8 @@ public:
 	uint32_t begin(uint32_t baudrate);
     uint32_t begin(uint32_t baudrate, uint8_t enPin);
 	uint32_t getBusSpeed();
+	int setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended);
+    int setRXFilter(uint32_t id, uint32_t mask, bool extended);
     boolean attachObj(CANListener *listener);
 	boolean detachObj(CANListener *listener);
     void setGeneralCallback( void (*cb)(CAN_FRAME *) );
