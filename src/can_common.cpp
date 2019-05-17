@@ -1,18 +1,49 @@
 #include <can_common.h>
 
+CAN_FRAME::CAN_FRAME()
+{
+	id = 0;
+	fid = 0;
+	rtr = 0;
+	priority = 15;
+	extended = false;
+	timestamp = 0;
+	length = 0;
+	data.value = 0;
+}
+
+CAN_FRAME_FD::CAN_FRAME_FD()
+{
+	id = 0;
+	fid = 0;
+	rrs = 0;
+	fdMode = 0;
+	priority = 15;
+	extended = false;
+	timestamp = 0;
+	length = 0;
+	for (int i = 0; i < 8; i++) data.uint64[i] = 0;
+}
+
 CANListener::CANListener()
 {
-	callbacksActive = 0; //none. Bitfield were bits 0-7 are the mailboxes and bit 8 is the general callback
-    numFilters = 8;
+	callbacksActive = 0;
+	generalCBActive = false;
+    numFilters = 32;
 }
 
 //an empty version so that the linker doesn't complain that no implementation exists.
 void CANListener::gotFrame(CAN_FRAME */*frame*/, int /*mailbox*/)
 {
-  
+
 }
 
-void CANListener::attachMBHandler(uint8_t mailBox)
+void CANListener::gotFrameFD(CAN_FRAME_FD *frame, int mailbox)
+{
+
+}
+
+void CANListener::setCallback(uint8_t mailBox)
 {
 	if ( mailBox < numFilters )
 	{
@@ -20,22 +51,22 @@ void CANListener::attachMBHandler(uint8_t mailBox)
 	}
 }
 
-void CANListener::detachMBHandler(uint8_t mailBox)
+void CANListener::removeCallback(uint8_t mailBox)
 {
 	if ( mailBox < numFilters )
 	{
-		callbacksActive &= ~(1<<mailBox);
+		callbacksActive &= ~(1ull<<mailBox);
 	}  
 }
 
-void CANListener::attachGeneralHandler()
+void CANListener::setGeneralHandler()
 {
-	callbacksActive |= (1 << numFilters);
+	generalCBActive = true;
 }
 
-void CANListener::detachGeneralHandler()
+void CANListener::removeGeneralHandler()
 {
-	callbacksActive &= ~(1 << numFilters);
+	generalCBActive = false;
 }
 
 void CANListener::initialize()
@@ -45,10 +76,18 @@ void CANListener::initialize()
 
 bool CANListener::isCallbackActive(int callback)
 {
-    return (callbacksActive & (1 << callback))?true:false;
+	if (callback == -1) return generalCBActive;
+
+	if (callback < numFilters)
+		return (callbacksActive & (1ull << callback))?true:false;
+
+	return false;
 }
 
-
+void CANListener::setNumFilters(int numFilt)
+{
+	numFilters = numFilt;
+}
 
 /*
 Some functions in CAN_COMMON are declared = 0 which means you HAVE to reimplement them or the compiler will puke. Some functions are optional
@@ -58,13 +97,61 @@ and they've got blank or very simple implementations below.
 CAN_COMMON::CAN_COMMON(int numFilt)
 {
     numFilters = numFilt;
-    //Official entry for the worst, most convoluted looking C++ line ever written.
-    //Dynamically allocate enough space for the function pointers with a hideous malloc call.
-    //cbCANFrame = malloc(4 * numFilters);
     memset(cbCANFrame, 0, 4 * numFilters);
-    cbGeneral = 0;
+	memset(cbCANFrameFD, 0, 4 * numFilters);
+
+    cbGeneral = NULL;
+	cbGeneralFD = NULL;
     enablePin = 255;
+	busSpeed = 0;
+	fd_DataSpeed = 0;
+	faulted = false;
+    rxFault = false;
+    txFault = false;
+	fdSupported = false;
     for (int i = 0; i < SIZE_LISTENERS; i++) listener[i] = 0;
+}
+
+/**
+ * \brief Returns whether a serious fault has occurred.
+ *
+ * \ret  Bool indicating whether interface has any sort of fault or not
+ */
+bool CAN_COMMON::isFaulted()
+{
+	return faulted;
+}
+
+/**
+ * \brief Returns whether a serious reception fault has occurred.
+ *
+ * \ret  Bool indicating whether interface has a fault in receiving frames
+ */
+bool CAN_COMMON::hasRXFault()
+{
+	return rxFault;
+}
+
+/**
+ * \brief Returns whether a serious frame transmission fault has occurred.
+ *
+ * \ret  Bool indicating whether interface has a fault in transmitting frames
+ */
+bool CAN_COMMON::hasTXFault()
+{
+	return txFault;
+}
+
+/**
+ * \brief Returns whether this interface supports CANFD or not. 
+ *
+ * \ret  Bool indicating whether interface can support CANFD or not.
+ *
+ * \note This is used for outside the class, internally fdSupported is directly used
+ */
+bool CAN_COMMON::supportsFDMode()
+{
+	return fdSupported;
 }
 
 uint32_t CAN_COMMON::begin()
@@ -72,9 +159,21 @@ uint32_t CAN_COMMON::begin()
 	return init(CAN_DEFAULT_BAUD);
 }
 
+uint32_t CAN_COMMON::beginFD()
+{
+	if (fdSupported) return initFD(CAN_DEFAULT_BAUD, CAN_DEFAULT_FD_RATE);
+	return 0;
+}
+
 uint32_t CAN_COMMON::begin(uint32_t baudrate)
 {
 	return init(baudrate);
+}
+
+uint32_t CAN_COMMON::beginFD(uint32_t baudrate, uint32_t fastRate)
+{
+	if (fdSupported) return initFD(baudrate, fastRate);
+	return 0;
 }
 
 uint32_t CAN_COMMON::begin(uint32_t baudrate, uint8_t enPin) 
@@ -83,9 +182,22 @@ uint32_t CAN_COMMON::begin(uint32_t baudrate, uint8_t enPin)
     return init(baudrate);
 }
 
+uint32_t CAN_COMMON::beginFD(uint32_t baudrate, uint32_t fastRate, uint8_t enPin)
+{
+	enablePin = enPin;
+	if (fdSupported) return initFD(baudrate, fastRate);
+	return 0;
+}
+
 uint32_t CAN_COMMON::getBusSpeed()
 {
 	return busSpeed;
+}
+
+uint32_t CAN_COMMON::getDataSpeedFD()
+{
+	if (fdSupported) return fd_DataSpeed;
+	return 0;
 }
 
 boolean CAN_COMMON::attachObj(CANListener *listener)
@@ -127,10 +239,16 @@ void CAN_COMMON::setGeneralCallback(void (*cb)(CAN_FRAME *))
 	cbGeneral = cb;
 }
 
+void CAN_COMMON::setGeneralCallbackFD(void (*cb)(CAN_FRAME_FD *))
+{
+	if (fdSupported) cbGeneralFD = cb;
+	else cbGeneralFD = NULL;
+}
+
 /**
  * \brief Set up a callback function for given mailbox
  *
- * \param mailbox Which mailbox (0-7) to assign callback to.
+ * \param mailbox Which mailbox (0-31) to assign callback to.
  * \param cb A function pointer to a function with prototype "void functionname(CAN_FRAME *frame);"
  *
  */
@@ -138,6 +256,13 @@ void CAN_COMMON::setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *))
 {
 	if ( mailbox >= numFilters ) return;
 	cbCANFrame[mailbox] = cb;
+}
+
+void CAN_COMMON::setCallbackFD(uint8_t mailbox, void (*cb)(CAN_FRAME_FD *))
+{
+	if ( mailbox >= numFilters ) return;
+	if (fdSupported) cbCANFrameFD[mailbox] = cb;
+	else cbCANFrameFD[mailbox] = NULL;
 }
 
 void CAN_COMMON::attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *)) 
@@ -148,7 +273,38 @@ void CAN_COMMON::attachCANInterrupt(uint8_t mailBox, void (*cb)(CAN_FRAME *))
 void CAN_COMMON::detachCANInterrupt(uint8_t mailBox)
 {
 	if ( mailBox >= numFilters ) return;
-	cbCANFrame[mailBox] = 0;
+	cbCANFrame[mailBox] = NULL;
+}
+
+void CAN_COMMON::removeCallback()
+{
+	for (int i = 0; i < numFilters; i++)
+	{
+		cbCANFrame[i] = NULL;
+		cbCANFrameFD[i] = NULL;
+	}
+}
+
+void CAN_COMMON::removeCallback(uint8_t mailbox)
+{
+	if (mailbox >= numFilters) return;
+	cbCANFrame[mailbox] = NULL;
+}
+
+void CAN_COMMON::removeGeneralCallback()
+{
+	cbGeneral = NULL;
+}
+
+void CAN_COMMON::removeGeneralCallbackFD()
+{
+	cbGeneralFD = NULL;
+}
+
+void CAN_COMMON::removeCallbackFD(uint8_t mailbox)
+{
+	if (mailbox >= numFilters) return;
+	cbCANFrameFD[mailbox] = NULL;
 }
 
 int CAN_COMMON::setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended)
@@ -165,7 +321,6 @@ int CAN_COMMON::watchFor()
 {
     setRXFilter(0, 0, false);
 	return setRXFilter(0, 0, true);
-
 }
 
 //Let a single frame ID through. Automatic determination of extended. Also automatically sets mask
@@ -226,3 +381,54 @@ int CAN_COMMON::watchForRange(uint32_t id1, uint32_t id2)
 	else return setRXFilter(id, mask, false);
 }
 
+//these next few functions would normally be pure abstract but they're implemented here
+//so that not every class needs to implement FD functionality to work.
+uint32_t CAN_COMMON::get_rx_buffFD(CAN_FRAME_FD &msg)
+{
+	return 0;
+}
+uint32_t CAN_COMMON::set_baudrateFD(uint32_t nominalSpeed, uint32_t dataSpeed)
+{
+	return 0;
+}
+
+bool CAN_COMMON::sendFrameFD(CAN_FRAME_FD& txFrame)
+{
+	return false;
+}
+
+uint32_t CAN_COMMON::initFD(uint32_t nominalRate, uint32_t dataRate)
+{
+	return 0;
+}
+
+//try to put a standard CAN frame into a CAN_FRAME_FD structure
+bool CAN_COMMON::canToFD(CAN_FRAME &source, CAN_FRAME_FD &dest)
+{
+  dest.id = source.id;
+  dest.fid = source.fid;
+  dest.rrs = source.rtr;
+  dest.priority = source.priority;
+  dest.extended = source.extended;
+  dest.fdMode = false;
+  dest.timestamp = source.timestamp;
+  dest.length = source.length;
+  dest.data.uint64[0] = source.data.uint64;
+  return true;
+}
+
+//Try to do inverse - turn a CANFD frame into a standard CAN_FRAME struct
+bool CAN_COMMON::fdToCan(CAN_FRAME_FD &source, CAN_FRAME &dest)
+{
+  if (source.length > 8) return false;
+  if (source.fdMode > 0) return false;
+  dest.id = source.id;
+  dest.fid = source.fid;
+  dest.rtr = source.rrs;
+  dest.priority = source.priority;
+  dest.extended = source.extended;
+  dest.timestamp = source.timestamp;
+  dest.length = source.length;
+  dest.data.uint64 = source.data.uint64[0];
+  return true;
+}
