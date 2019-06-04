@@ -24,8 +24,12 @@
 #define CAN_BPS_33333	33333
 #define CAN_BPS_25K		25000
 
+#ifdef CAN_COMMON_SIZE_LISTENERS
+# define SIZE_LISTENERS CAN_COMMON_SIZE_LISTENERS
+#else
+# define SIZE_LISTENERS	4 //number of classes that can register as listeners with this class
+#endif
 
-#define SIZE_LISTENERS	4 //number of classes that can register as listeners with this class
 #define CAN_DEFAULT_BAUD	500000
 #define CAN_DEFAULT_FD_RATE 4000000
 
@@ -167,22 +171,11 @@ class CANListener
 public:
   CANListener();
 
-  virtual void gotFrame(CAN_FRAME *frame, int mailbox);
-  virtual void gotFrameFD(CAN_FRAME_FD *frame, int mailbox);
-
-  void setCallback(uint8_t mailBox);
-  void removeCallback(uint8_t mailBox);
-  void setGeneralHandler();
-  void removeGeneralHandler();
-  void initialize();
-  bool isCallbackActive(int callback);
-  void setNumFilters(int numFilt);
-
-private:
-  uint32_t callbacksActive; //bitfield letting the code know which callbacks to actually try to use (for object oriented callbacks only)
-  bool generalCBActive; //is the general callback registered?
-  int numFilters; //filters, mailboxes, whichever, how many do we have?
+  virtual void gotFrame(CAN_FRAME& frame);
+  virtual void sentFrame(CAN_FRAME& frame);
 };
+
+#define BUSNAME_MAX_LEN 40
 
 /*Abstract function that mostly just sets an interface that all descendants must implement */
 class CAN_COMMON
@@ -191,7 +184,7 @@ public:
 
     CAN_COMMON(int numFilt);
 
-    //Public API that needs to be re-implemented by subclasses
+    // //Public API that needs to be re-implemented by subclasses
 	virtual int _setFilterSpecific(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended) = 0;
     virtual int _setFilter(uint32_t id, uint32_t mask, bool extended) = 0;
 	virtual uint32_t init(uint32_t ul_baudrate) = 0;
@@ -200,21 +193,17 @@ public:
     virtual void setListenOnlyMode(bool state) = 0;
 	virtual void enable() = 0;
 	virtual void disable() = 0;
-	virtual bool sendFrame(CAN_FRAME& txFrame) = 0;
+	virtual bool _sendFrame(CAN_FRAME& txFrame) = 0;
 	virtual bool rx_avail() = 0;
 	virtual uint16_t available() = 0; //like rx_avail but returns the number of waiting frames
-	virtual uint32_t get_rx_buff(CAN_FRAME &msg) = 0;
+	virtual uint32_t _get_rx_buff(CAN_FRAME &msg) = 0;
     //These aren't abstract because not all CAN drivers would support FD
     virtual uint32_t get_rx_buffFD(CAN_FRAME_FD &msg);
     virtual uint32_t set_baudrateFD(uint32_t nominalSpeed, uint32_t dataSpeed);
     virtual bool sendFrameFD(CAN_FRAME_FD& txFrame);
-    virtual uint32_t initFD(uint32_t nominalRate, uint32_t dataRate);    
+    virtual uint32_t initFD(uint32_t nominalRate, uint32_t dataRate); 
 
     //Public API common to all subclasses - don't need to be re-implemented
-    //wrapper for syntactic sugar reasons
-    //note to my dumb self - functions cannot be both virtual and have multiple versions where the parameter list is different
-    //you have to pick one or the other.
-	inline uint32_t read(CAN_FRAME &msg) { return get_rx_buff(msg); }    
     int watchFor(); //allow anything through
 	int watchFor(uint32_t id); //allow just this ID through (automatic determination of extended status)
     int watchFor(uint32_t id, uint32_t mask); //allow a range of ids through
@@ -224,10 +213,12 @@ public:
 	uint32_t begin(uint32_t baudrate);
     uint32_t begin(uint32_t baudrate, uint8_t enPin);
 	uint32_t getBusSpeed();
+	bool sendFrame(CAN_FRAME& txFrame);
+	uint32_t get_rx_buff(CAN_FRAME &msg);
 	int setRXFilter(uint8_t mailbox, uint32_t id, uint32_t mask, bool extended);
     int setRXFilter(uint32_t id, uint32_t mask, bool extended);
-    boolean attachObj(CANListener *listener);
-	boolean detachObj(CANListener *listener);
+    boolean attachListener(CANListener *listener);
+	boolean detachListener(CANListener *listener);
     void setGeneralCallback( void (*cb)(CAN_FRAME *) );
 	void setCallback(uint8_t mailbox, void (*cb)(CAN_FRAME *));
     void removeCallback();
@@ -240,9 +231,10 @@ public:
     bool isFaulted();
     bool hasRXFault();
     bool hasTXFault();
+    char name[BUSNAME_MAX_LEN];
+    uint32_t bus_number;
 
     //pubic API for CAN-FD mode
-    inline uint32_t readFD(CAN_FRAME_FD &msg) { return get_rx_buffFD(msg); }
     uint32_t beginFD(uint32_t nominalBaudRate, uint32_t fastBaudRate);
     uint32_t beginFD(uint32_t nominalBaudRate, uint32_t fastBaudRate, uint8_t enPin);
     uint32_t beginFD();
@@ -251,8 +243,8 @@ public:
     void setCallbackFD(uint8_t mailbox, void (*cb)(CAN_FRAME_FD *));
     void removeGeneralCallbackFD();
     void removeCallbackFD(uint8_t mailbox);
-    bool canToFD(CAN_FRAME &source, CAN_FRAME_FD &dest);
-	bool fdToCan(CAN_FRAME_FD &source, CAN_FRAME &dest);
+    static bool canToFD(CAN_FRAME &source, CAN_FRAME_FD &dest);
+	static bool fdToCan(CAN_FRAME_FD &source, CAN_FRAME &dest);
 
 protected:
 	CANListener *listener[SIZE_LISTENERS];
