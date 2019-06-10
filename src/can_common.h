@@ -240,6 +240,7 @@ public:
     bool isFaulted();
     bool hasRXFault();
     bool hasTXFault();
+    void setDebuggingMode(bool mode);
 
     //pubic API for CAN-FD mode
     inline uint32_t readFD(CAN_FRAME_FD &msg) { return get_rx_buffFD(msg); }
@@ -253,6 +254,8 @@ public:
     void removeCallbackFD(uint8_t mailbox);
     bool canToFD(CAN_FRAME &source, CAN_FRAME_FD &dest);
 	bool fdToCan(CAN_FRAME_FD &source, CAN_FRAME &dest);
+    
+    bool debuggingMode;
 
 protected:
 	CANListener *listener[SIZE_LISTENERS];
@@ -267,7 +270,7 @@ protected:
     bool fdSupported;
     bool faulted;
     bool rxFault;
-    bool txFault;
+    bool txFault;    
 };
 
 #endif

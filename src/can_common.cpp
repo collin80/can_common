@@ -108,8 +108,14 @@ CAN_COMMON::CAN_COMMON(int numFilt)
 	faulted = false;
     rxFault = false;
     txFault = false;
+	debuggingMode = false;
 	fdSupported = false;
     for (int i = 0; i < SIZE_LISTENERS; i++) listener[i] = 0;
+}
+
+void CAN_COMMON::setDebuggingMode(bool mode)
+{
+	debuggingMode = mode;
 }
 
 /**
