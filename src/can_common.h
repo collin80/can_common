@@ -1,7 +1,13 @@
 #ifndef _CAN_COMMON_
 #define _CAN_COMMON_
 
+#ifdef __ARDUINO__
 #include <Arduino.h>
+#else
+#include <stdint.h>
+#include <string.h>
+typedef bool boolean;
+#endif // __ARDUINO__
 
 /** Define the typical baudrate for CAN communication. */
 #ifdef CAN_BPS_500K
@@ -165,6 +171,17 @@ public:
     uint8_t fdMode;       // 0 = normal CAN frame, 1 = CAN-FD frame
     uint8_t length;       // Number of data bytes
 };
+
+enum frame_direction_e {
+    FRAME_DIRECTION_RX = 0,
+    FRAME_DIRECTION_TX
+};
+
+typedef struct {
+    CAN_FRAME frame;
+    int bus_number;
+    frame_direction_e direction;
+} frameobject_t;
 
 class CANListener
 {
