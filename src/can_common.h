@@ -35,6 +35,8 @@
 #define attachGeneralHandler setGeneralHandler
 #define detachGeneralHandler removeGeneralHandler
 
+extern const uint8_t fdLengthEncoding[65];
+
 class BitRef
 {
 public:
@@ -114,16 +116,16 @@ typedef union {
     int8_t  int8[64];
 
     struct {
-        uint64_t bitField[64];
+        uint8_t bitField[64];
         const bool operator[]( int pos ) const
         {
-            if (pos < 0 || pos > 319) return 0;
+            if (pos < 0 || pos > 511) return 0; //64 8 bit bytes is 512 bits, we start counting bits at 0
             int bitfieldIdx = pos / 8;
             return (bitField[bitfieldIdx] >> pos) & 1;
         }
         BitRef operator[]( int pos )
         {
-            if (pos < 0 || pos > 319) return BitRef((uint8_t *)&bitField[0], 0);
+            if (pos < 0 || pos > 511) return BitRef((uint8_t *)&bitField[0], 0);
             uint8_t *ptr = (uint8_t *)&bitField[0]; 
             return BitRef(ptr + (pos / 8), pos & 7);
         }
@@ -154,7 +156,7 @@ public:
     BytesUnion_FD data;   // 64 bytes - lots of ways to access it.
     uint32_t id;          // EID if ide set, SID otherwise
     uint32_t fid;         // family ID
-    uint32_t timestamp;        // CAN timer value when mailbox message was received.
+    uint32_t timestamp;   // CAN timer value when mailbox message was received.
     uint8_t rrs;          // RRS for CAN-FD (optional 12th standard ID bit)
     uint8_t priority;     // Priority but only important for TX frames and then only for special uses. (0-31)
     uint8_t extended;     // Extended ID flag
