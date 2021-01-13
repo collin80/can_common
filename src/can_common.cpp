@@ -221,7 +221,7 @@ boolean CAN_COMMON::attachObj(CANListener *listener)
 		{
 			this->listener[i] = listener;
 			listener->initialize();
-			return true;			
+			return true;
 		}
 	}
 	return false;
@@ -233,11 +233,11 @@ boolean CAN_COMMON::detachObj(CANListener *listener)
 	{
 		if (this->listener[i] == listener)
 		{
-			this->listener[i] = NULL;			
-			return true;			
+			this->listener[i] = NULL;
+			return true;
 		}
 	}
-	return false;  
+	return false;
 }
 
 /**
