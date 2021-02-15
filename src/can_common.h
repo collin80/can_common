@@ -1,7 +1,13 @@
 #ifndef _CAN_COMMON_
 #define _CAN_COMMON_
 
+#ifndef UNIT_TEST
 #include <Arduino.h>
+#else
+#include <stdint.h>
+#include <cstring>
+typedef bool boolean;
+#endif
 
 /** Define the typical baudrate for CAN communication. */
 #ifdef CAN_BPS_500K
