@@ -73,6 +73,8 @@ typedef union {
     int32_t int32[2]; 
     int16_t int16[4];
     int8_t  int8[8];
+    size_t size[sizeof(uint64_t) / sizeof(size_t)];
+    ssize_t ssize[sizeof(uint64_t) / sizeof(ssize_t)];
 
     //deprecated names used by older code
     uint64_t value;
@@ -114,6 +116,8 @@ typedef union {
     int32_t int32[16]; 
     int16_t int16[32];
     int8_t  int8[64];
+    size_t size[(sizeof(uint64_t) * 8) / sizeof(size_t)];
+    ssize_t ssize[(sizeof(uint64_t) * 8) / sizeof(ssize_t)];
 
     struct {
         uint8_t bitField[64];
